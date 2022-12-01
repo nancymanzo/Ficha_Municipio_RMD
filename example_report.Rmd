@@ -1,0 +1,651 @@
+---
+output:
+  tufte::tufte_handout:
+    latex_engine: xelatex
+params:
+  country: "country"
+header-includes:
+  - \usepackage{booktabs}
+  - \usepackage{longtable}
+  - \usepackage{array}
+  - \usepackage{multirow}
+  - \usepackage{wrapfig}
+  - \usepackage{float}
+  - \floatplacement{figure}{H} 
+  - \usepackage{colortbl}
+  - \usepackage{pdflscape}
+  - \usepackage{tabu}
+  - \usepackage{threeparttable}
+  - \usepackage{threeparttablex}
+  - \usepackage[normalem]{ulem}
+  - \usepackage{makecell}
+  - \usepackage{xcolor}
+  - \usepackage{numprint}
+---
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+#Cargar librerias
+library(readxl)
+library(dplyr)
+library(ggplot2)    
+library(dplyr)      
+library(tidyverse) 
+library(esquisse)   
+library(tidyr)      
+library(plotly)     
+library(ggthemes)  
+library(janitor)    
+library(kableExtra) 
+library(scales)     
+library(viridis)    
+library(RColorBrewer) 
+library(extrafontdb)
+library(extrafont)
+library(sysfonts)
+library(lubridate)
+
+Municipio_Ficha<-"Guadalajara"
+Delito_Ficha_1<- "Abuso sexual"
+Delito_Ficha_2<- "Violación"
+Delito_Ficha_3<- "Violencia familiar"
+Delito_Ficha_4<- "Feminicidio"
+```
+
+![](logos_jal.png)
+
+<p style="text-align: right;">
+
+<center>
+
+</p>
+
+<center>
+
+ 
+
+# **Situación actual en `r Municipio_Ficha` en torno a la violencia de género contra mujeres, adolescentes y niñez.**
+
+ 
+
+
+```{r include=FALSE}
+
+
+datosJaliscosep22<-read.csv("IDM_NM_sep22.csv", check.names = T, encoding = "latin1")%>%
+ mutate(Subtipo.de.delito=case_when(
+    Subtipo.de.delito=="Abuso sexual"~"Abuso sexual",
+    Subtipo.de.delito=="Violación equiparada"~"Violación",
+    Subtipo.de.delito=="Violación simple"~ "Violación",
+    Subtipo.de.delito=="Feminicidio"~"Feminicidio",
+    Subtipo.de.delito=="Violencia familiar" ~"Violencia familiar")) %>%
+   filter(Entidad=="Jalisco",
+    Subtipo.de.delito %in% c("Abuso sexual", "Feminicidio", 
+                             "Violación", "Violencia familiar")) %>% 
+  gather(Mes, Carpetas, Enero:Diciembre) %>% 
+  group_by(Año, Mes,Subtipo.de.delito, Municipio) %>% 
+  summarise(value=sum(Carpetas, na.rm = T))
+  
+
+merge_regional <-datosJaliscosep22
+```
+
+
+<div style="text-align: justify">
+
+Con respecto de la violencia de género contra las mujeres, adolescentes y niñez, el comportamiento en los últimos años ha sido ascendente al punto de que el municipio de **`r Municipio_Ficha`** se encuentra lo siguiente:
+ 
+
+
+------------------------------------------------------------------------
+
+<p style="text-align: left;">
+
+ 
+
+## **Abuso Sexual Infantil**
+
+</p>
+
+
+
+```{r include=FALSE, fig.width=10, fig.height=5}
+merge_regional %>%
+  filter(Municipio %in% Municipio_Ficha,
+         Subtipo.de.delito %in% Delito_Ficha_1) %>%
+  group_by(Año) %>% 
+  summarise(Total=sum(value))->anual_asi
+
+merge_regional %>%
+  filter(Municipio %in% Municipio_Ficha,
+         Subtipo.de.delito %in% Delito_Ficha_1) %>%
+  group_by(Subtipo.de.delito) %>% 
+  summarise(Total=sum(value))->asi_total
+
+asi_total<- asi_total[1,2]
+asi_total<-asi_total %>% unlist()
+
+asi_año<-anual_asi %>% 
+   arrange(-Total)
+
+asi_año<-asi_año[1,1]
+  
+
+asi_max<-anual_asi %>% 
+   arrange(-Total)
+
+asi_max<-asi_max[1,2]
+asi_max<-asi_max %>% unlist()
+
+merge_regional %>%
+  filter(Municipio %in% Municipio_Ficha,
+         Subtipo.de.delito %in% Delito_Ficha_1,
+         Año==2022) %>%
+  group_by(Municipio) %>% 
+  summarise(Total=sum(value))->asi_2022
+
+asi_2022<-asi_2022[1,2]
+asi_2022<-asi_2022 %>% unlist()
+
+
+merge_regional %>%
+  filter(Municipio %in% Municipio_Ficha,
+         Subtipo.de.delito %in% Delito_Ficha_1,
+         Año==2022) %>%
+  group_by(Municipio) %>% 
+  summarise(Total=sum(value)) %>% 
+  arrange(-Total)->asi_2022_mun
+
+mun_principales_asi<-asi_2022_mun %>% select(Municipio) %>% slice_head(n = 4) %>% unlist()
+
+asi_2022_mun %>% 
+  slice_head(n = 4) %>% 
+  summarise(Total=sum(Total))->asi_principal_4_suma
+
+asi_2022_mun<-asi_2022_mun %>% summarise(Total=sum(Total))
+
+principal_porcentaje_asi<-(asi_principal_4_suma/asi_2022_mun)*100
+
+anual_asi %>% 
+  mutate(text = paste("Año: ", Año,
+                      "\nTotal de carpetas: ", scales::comma(Total), sep="")) %>%
+ggplot() +
+  aes(x =as.factor(Año), y = Total, text=text) +
+  geom_col(fill = "#f21d72") +
+  theme_minimal()+
+  geom_text(aes(label=comma(Total)), size=6.0, vjust = 0)+
+  scale_fill_hue(direction = 1) +
+  scale_y_continuous(labels = scales::comma) +
+  theme_minimal()+
+  labs(title = paste0("Gráfica 1. Carpetas anuales de investigación por el delito de " , Delito_Ficha_1),
+       caption = "Elaborado con datos de Secretariado Ejecutivo del Sistema Nacional de Seguridad Pública",
+       x=" ", y=" ", color="", fill="") +
+  theme_minimal()->g_anual_asi #+ 
+  # theme(text=element_text(size=11, family = "Century Gothic"),
+  #       legend.position='none',
+  #       plot.title = element_text(size = 10L, hjust = 0, color = "#6e6d6d", family = "Century Gothic"),
+  #       plot.caption = element_text(size = 10L, hjust = 0, face = "italic", family = "Century Gothic"),
+  #       axis.text.x = element_text(angle = 0, vjust = 0.5, hjust=1, size=11, family = "Century Gothic"))->g_anual_asi
+
+#g_anual_asi
+
+```
+
+
+De 2015 a 2022 se han registrado **`r comma(asi_total)`** carpetas de **`r Delito_Ficha_1`** en el municipio de **`r Municipio_Ficha`**, el año con mayor registros es el **`r asi_año`** con **`r comma(asi_max)`**. De enero a septiembre 2022 se han contabilizado **`r comma(asi_2022)`** carpetas.
+
+```{r echo=FALSE, fig.width=10, fig.height=5}
+g_anual_asi
+```
+
+------------------------------------------------------------------------
+
+<p style="text-align: left;">
+
+ 
+
+## **Violación**
+
+</p>
+
+```{r include=FALSE}
+# merge_regional %>% 
+#   mutate(Periodo = ymd(paste0(Año, "-", Mes, "-01"))) %>%
+#   filter(Periodo<="2022-08-01") %>%  
+#   group_by(Periodo) %>% 
+#   filter(Subtipo.de.delito=="Violación") %>% 
+#   summarise(Total=sum(value))->vio_jal
+# 
+# 
+# merge_regional %>% 
+#   mutate(Periodo = ymd(paste0(Año, "-", Mes, "-01"))) %>%
+#   filter(Periodo<="2022-08-01") %>%  
+#   group_by(Periodo) %>% 
+#   filter(Subtipo.de.delito=="Violación") %>% 
+#   summarise(Total=sum(value)) %>% 
+#   arrange(-Total) %>% 
+#   slice_head(n=1)->periodo_maximo_vio
+# 
+# 
+# año_periodo_maximo_vio<-periodo_maximo_vio[1,1]
+# 
+# #año_periodo_maximo_vio<-substr(año_periodo_maximo_vio$Periodo, start = 1, stop = 7)
+# 
+# suma_periodo_maximo_vio<-periodo_maximo_vio[1,2]
+# suma_periodo_maximo_vio<-suma_periodo_maximo_vio %>% unlist()
+
+merge_regional %>%
+  filter(Subtipo.de.delito %in% "Violación") %>%
+  summarise(Total=sum(value))->vio_2022_total
+
+vio_2022_total %>% unlist()
+
+
+merge_regional %>%
+  filter(Municipio %in% Municipio_Ficha,
+         Subtipo.de.delito %in% "Violación") %>%
+  summarise(Total=sum(value),
+            Promedio=round(Total/92))->historico_vio
+
+historico_vio[1,2]->promedio_vio
+historico_vio[1,1]->suma_vio
+suma_vio<-suma_vio %>% unlist
+
+merge_regional %>%
+  filter(Municipio %in% Municipio_Ficha,
+         Subtipo.de.delito %in% Delito_Ficha_2) %>%
+  group_by(Año) %>% 
+  summarise(Total=sum(value))->anual_vio
+
+
+merge_regional %>%
+  filter(Municipio %in% Municipio_Ficha,
+         Subtipo.de.delito %in% Delito_Ficha_2) %>%
+  group_by(Subtipo.de.delito) %>% 
+  summarise(Total=sum(value))->vio_total
+
+vio_total<- vio_total[1,2] 
+vio_total<-vio_total %>% unlist()
+
+vio_año<-anual_vio %>% 
+   arrange(-Total)
+
+vio_año<-vio_año[1,1]
+  
+
+vio_max<-anual_vio %>% 
+   arrange(-Total)
+
+vio_max<-vio_max[1,2]
+vio_max<-vio_max %>% unlist()
+
+merge_regional %>%
+  filter(Municipio %in% Municipio_Ficha,
+         Subtipo.de.delito %in% Delito_Ficha_2,         
+         Año==2022) %>%
+  group_by(Municipio) %>% 
+  summarise(Total=sum(value))->vio_2022
+vio_2022<-vio_2022[1,2]
+vio_2022<-vio_2022 %>% unlist()
+
+
+merge_regional %>%
+  filter(Municipio %in% Municipio_Ficha,
+         Subtipo.de.delito %in% Delito_Ficha_2,
+         Año==2022) %>%
+  group_by(Municipio) %>% 
+  summarise(Total=sum(value)) %>% 
+  arrange(-Total)->vio_2022_mun
+
+mun_principales_vio<-vio_2022_mun %>% select(Municipio) %>% slice_head(n = 4) %>% unlist()
+
+vio_2022_mun %>% 
+  slice_head(n = 4) %>% 
+  summarise(Total=sum(Total))->vio_principal_4_suma
+
+vio_2022_mun<-vio_2022_mun %>% summarise(Total=sum(Total))
+
+principal_porcentaje_vio<-(vio_principal_4_suma/vio_2022_mun)*100
+
+
+anual_vio %>% 
+  mutate(text = paste("Año: ", Año,
+                    "\nTotal de carpetas: ", scales::comma(Total), sep=""))%>%
+
+ggplot() +
+  aes(x =as.factor(Año), y = Total, text=text) +
+  geom_col(fill = "#7030A0") +
+  theme_minimal()+
+  geom_text(aes(label=comma(Total)), size=6.0, vjust = 0)+
+  scale_fill_hue(direction = 1) +
+  scale_y_continuous(labels = scales::comma) +
+  theme_minimal()+
+  labs(title = paste0("Gráfica 2. Carpetas anuales de investigación por el delito de ", Delito_Ficha_2),
+       caption = "Elaborado con datos de Secretariado Ejecutivo del Sistema Nacional de Seguridad Pública",
+       x="", y="", color="", fill="") +
+  theme_minimal()->g_anual_vio #+ 
+  # theme(text=element_text(size=11, family = "Century Gothic"),
+  #       legend.position='none',
+  #       plot.title = element_text(size = 10L, hjust = 0, color = "#6e6d6d", family = "Century Gothic"),
+  #       plot.caption = element_text(size = 10L, hjust = 0, face = "italic", family = "Century Gothic"),
+  #       axis.text.x = element_text(angle = 0, vjust = 0.5, hjust=1, size=11, family = "Century Gothic"))->g_anual_vio
+
+#g_anual_vio
+
+```
+
+
+
+De 2015 a 2022 se han registrado **`r comma(vio_total)`** carpetas de **`r Delito_Ficha_2`** en el municipio, el año con mayor registros es el **`r vio_año`** con **`r comma(vio_max)`**. De enero a septiembre 2022 se han contabilizado **`r comma(vio_2022)`** carpetas.
+
+```{r echo=FALSE, fig.width=10, fig.height=5}
+g_anual_vio
+```
+------------------------------------------------------------------------
+
+<p style="text-align: left;">
+
+ 
+
+## **Violencia familiar**
+
+</p>
+
+
+```{r include=FALSE, fig.width=10, fig.height=5}
+merge_regional %>%
+  filter(Municipio %in% Municipio_Ficha,
+         Subtipo.de.delito %in% Delito_Ficha_3) %>%
+  group_by(Año) %>% 
+  summarise(Total=sum(value))->anual_vf
+
+merge_regional %>%
+  filter(Municipio %in% Municipio_Ficha,
+         Subtipo.de.delito %in% Delito_Ficha_3) %>%
+  group_by(Subtipo.de.delito) %>% 
+  summarise(Total=sum(value))->vf_total
+
+vf_total<- vf_total[1,2]
+vf_total<-vf_total %>% unlist()
+
+vf_año<-anual_vf %>% 
+   arrange(-Total)
+
+vf_año<-vf_año[1,1]
+  
+
+vf_max<-anual_vf %>% 
+   arrange(-Total)
+
+vf_max<-vf_max[1,2]
+vf_max<-vf_max %>% unlist()
+
+merge_regional %>%
+  filter(Municipio %in% Municipio_Ficha,
+         Subtipo.de.delito %in% Delito_Ficha_3,
+         Año==2022) %>%
+  group_by(Municipio) %>% 
+  summarise(Total=sum(value))->vf_2022
+
+vf_2022<-vf_2022[1,2]
+vf_2022<-vf_2022 %>% unlist()
+
+
+merge_regional %>%
+  filter(Municipio %in% Municipio_Ficha,
+         Subtipo.de.delito %in% Delito_Ficha_3,
+         Año==2022) %>%
+  group_by(Municipio) %>% 
+  summarise(Total=sum(value)) %>% 
+  arrange(-Total)->vf_2022_mun
+
+mun_principales_vf<-vf_2022_mun %>% select(Municipio) %>% slice_head(n = 4) %>% unlist()
+
+vf_2022_mun %>% 
+  slice_head(n = 4) %>% 
+  summarise(Total=sum(Total))->vf_principal_4_suma
+
+vf_2022_mun<-vf_2022_mun %>% summarise(Total=sum(Total))
+
+principal_porcentaje_vf<-(vf_principal_4_suma/vf_2022_mun)*100
+
+anual_vf %>% 
+ mutate(text = paste("Año: ", Año,
+                    "\nTotal de carpetas: ", scales::comma(Total), sep=""))%>%
+  
+ggplot() +
+  aes(x =as.factor(Año), y = Total, text=text) +
+  geom_col(fill = "#f21d72") +
+  theme_minimal()+
+  geom_text(aes(label=comma(Total)), size=6.0, vjust = 0)+
+  scale_fill_hue(direction = 1) +
+  scale_y_continuous(labels = scales::comma) +
+  theme_minimal()+
+  labs(title = paste0("Gráfica 3. Carpetas anuales de investigación por el delito de ", Delito_Ficha_3),
+       caption = "Elaborado con datos de Secretariado Ejecutivo del Sistema Nacional de Seguridad Pública",
+       x="", y="", color="", fill="") +
+  theme_minimal() ->g_anual_vf #+ 
+  # theme(text=element_text(size=11, family = "Century Gothic"),
+  #       legend.position='none',
+  #       plot.title = element_text(size = 10L, hjust = 0, color = "#6e6d6d", family = "Century Gothic"),
+  #       plot.caption = element_text(size = 10L, hjust = 0, face = "italic", family = "Century Gothic"),
+  #       axis.text.x = element_text(angle = 0, vjust = 0.5, hjust=1, size=11, family = "Century Gothic"))->g_anual_vf
+
+#g_anual_vf
+```
+
+
+
+De 2015 a 2022 se han registrado **`r comma(vf_total)`** carpetas de **`r Delito_Ficha_3`** en **`r Municipio_Ficha`**, el año con mayor registros es el **`r vf_año`** con **`r comma(vf_max)`**. De enero a septiembre 2022 se han contabilizado **`r comma(vf_2022)`** carpetas.
+
+```{r echo=FALSE, fig.width=10, fig.height=5}
+g_anual_vf
+```
+
+------------------------------------------------------------------------
+
+<p style="text-align: left;">
+
+ 
+
+## **Feminicidio**
+
+En el ranking de los 100 municipios con mayor registros por feminicidio en el país, destacan los municipios de Jalisco: **Zapopan** en el lugar **26**, **Puerto Vallarta** en el **60**, **Guadalajara**, **Mezquitic**, **Tlajomulco** y **Tonalá** se encuentran en el **95**, **96**, **97** y **98** respectivamente.
+
+</p>
+
+
+```{r include=FALSE, fig.width=10, fig.height=5}
+merge_regional %>%
+  filter(Municipio %in% Municipio_Ficha,
+         Subtipo.de.delito %in% Delito_Ficha_4) %>%
+  group_by(Año) %>% 
+  summarise(Total=sum(value))->anual_femi
+
+merge_regional %>%
+  filter(Municipio %in% Municipio_Ficha,
+         Subtipo.de.delito %in% Delito_Ficha_4) %>%
+  group_by(Subtipo.de.delito) %>% 
+  summarise(Total=sum(value))->femi_total
+
+femi_total<- femi_total%>% 
+  summarise(Total=sum(Total))
+
+femi_año<-anual_femi %>% 
+   arrange(-Total)
+
+femi_año<-femi_año[1,1]
+  
+
+femi_max<-anual_femi %>% 
+   arrange(-Total)
+
+femi_max<-femi_max[1,2]
+
+
+merge_regional %>%
+  filter(Municipio %in% Municipio_Ficha,
+         Subtipo.de.delito %in% Delito_Ficha_4,
+         Año==2022) %>%
+  group_by(Año) %>% 
+  summarise(Total=sum(value))->femi_2022
+
+femi_2022<-femi_2022[1,2]
+femi_2022<-femi_2022 %>% unlist()
+
+merge_regional %>%
+  filter(Municipio %in% Municipio_Ficha,
+         Subtipo.de.delito %in% Delito_Ficha_4,
+         Año==2022) %>%
+  group_by(Municipio) %>% 
+  summarise(Total=sum(value)) %>% 
+  arrange(-Total)->femi_2022_mun
+
+mun_principales_femi<-femi_2022_mun %>% select(Municipio) %>% slice_head(n = 4) %>% unlist()
+
+femi_2022_mun %>% 
+  slice_head(n = 4) %>% 
+  summarise(Total=sum(Total))->femi_principal_4_suma
+
+femi_2022_mun<-femi_2022_mun %>% summarise(Total=sum(Total))
+
+principal_porcentaje_femi<-(femi_principal_4_suma/femi_2022_mun)*100
+
+anual_femi %>% 
+  mutate(text = paste("Año: ", Año,
+                    "\nTotal de carpetas: ", scales::comma(Total), sep=""))%>%
+ggplot() +
+  aes(x =as.factor(Año), y = Total, text=text) +
+  geom_col(fill = "#6609bd") +
+  theme_minimal()+
+  geom_text(aes(label=comma(Total)), size=6.0,vjust = 0)+
+  scale_fill_hue(direction = 1) +
+  scale_y_continuous(labels = scales::comma) +
+  theme_minimal()+
+  labs(title = paste0("Gráfica 4. Carpetas anuales de investigación por el delito de ", Delito_Ficha_4),
+       caption = "Elaborado con datos de Secretariado Ejecutivo del Sistema Nacional de Seguridad Pública",
+       x="", y="", color="", fill="") +
+  theme_minimal()->g_anual_femi #+ 
+  # theme(text=element_text(size=11, family = "Century Gothic"),
+  #       legend.position='none',
+  #       plot.title = element_text(size = 10L, hjust = 0, color = "#6e6d6d", family = "Century Gothic"),
+  #       plot.caption = element_text(size = 10L, hjust = 0, face = "italic", family = "Century Gothic"),
+  #       axis.text.x = element_text(angle = 0, vjust = 0.5, hjust=1, size=11, family = "Century Gothic"))->g_anual_femi
+
+#g_anual_femi
+
+```
+
+
+De 2015 a 2022 se han registrado **`r femi_total`** carpetas de **`r Delito_Ficha_4`** en el municipio de **`r Municipio_Ficha`**, el año con mayor registros es el **`r femi_año`** con **`r femi_max`**. De enero a septiembre 2022 se han contabilizado **`r femi_2022`** carpetas.La tasa de feminicidio por cada 100 mil mujeres es de **0.26** en el municipio.
+
+```{r echo=FALSE, fig.width=10, fig.height=5}
+g_anual_femi
+```
+
+```{r include=FALSE}
+#Medidas
+medidas_ordenes_municipal <- read_excel("~/NLMR/medidas_ordenes.xlsx", sheet = "municipal") %>% 
+  mutate(
+    mes=factor(mes,
+               levels=c("Enero", "Febrero", "Marzo","Abril", "Mayo", "Junio",
+                        "Julio", "Agosto", "Septiembre", "Octubre","Noviembre", "Diciembre")))
+
+medidas_ordenes_municipal %>% 
+  filter(municipio %in% c("Guadalajara", "Zapopan", "Tlajomulco de Zúñiga", "San Pedro Tlaquepaque",
+                          "Tonalá", "El Salto", "Puerto Vallarta", "Lagos de Moreno",
+                          "Colotlán", "Mezquitic")) %>%
+  group_by(año, municipio) %>% 
+  summarise(medidas=sum(medidas_aceptadas + medidas_rechazadas),
+            ordenes=sum(ordenes_aceptadas + ordenes_rechazadas)) %>% 
+  pivot_longer(cols=c("ordenes","medidas"),
+               names_to = "tipo",
+               values_to = "total") ->medidas_y_ordenes
+
+ordenes_medidas_regional <- medidas_y_ordenes
+
+###########################################################3
+# 
+ordenes_medidas_regional %>% 
+  filter(#Región=="Región Centro",
+         tipo=="ordenes") %>% 
+  group_by(año, municipio) %>% 
+  summarise(total=sum(total, na.rm = T)) %>% 
+  pivot_wider(names_from = año, values_from = total) %>% 
+  mutate(`2022`=as.numeric(`2022`)) %>% 
+  select(municipio,`2019`,`2020`,`2021`,`2022`) %>%
+  arrange(-`2022`) %>% 
+  mutate(`2019`=scales::comma(`2019`),
+         `2020`=scales::comma(`2020`),
+         `2021`=scales::comma(`2021`),
+         `2022`=scales::comma(`2022`))->ordenes
+
+
+```
+
+ 
+
+## **Ordenes de protección**
+
+Total de ordenes de protección (2019 a 2022 septiembre) por municipio:
+```{r echo=FALSE, fig.width=4, fig.height=4, fig.align='center'}
+#DT::datatable(ordenes)
+
+ordenes %>% 
+  knitr::kable(
+    format = "latex",
+    align = "l",
+    booktabs = TRUE,
+    longtable = TRUE,
+    linesep = "",
+    ) %>%
+  kableExtra::kable_styling(
+      position = "left",
+      latex_options = c("striped", "repeat_header"),
+      stripe_color = "gray!15"
+    )
+```
+
+```{r include=FALSE}
+#Medidas de protección
+
+
+ordenes_medidas_regional %>% 
+  filter(#Región=="Región Centro",
+         tipo=="medidas") %>% 
+  group_by(año, municipio) %>% 
+  summarise(total=sum(total, na.rm = T)) %>% 
+  pivot_wider(names_from = año, values_from = total) %>% 
+  mutate(`2022`=as.numeric(`2022`)) %>% 
+  select(municipio,`2019`,`2020`,`2021`,`2022`) %>%
+  arrange(-`2022`) %>% 
+  mutate(`2019`=scales::comma(`2019`),
+         `2020`=scales::comma(`2020`),
+         `2021`=scales::comma(`2021`),
+         `2022`=scales::comma(`2022`))->medidas
+
+
+```
+ 
+
+## **Medidas de protección**
+
+Total de medidas de protección (2019 a 2022 septiembre) por municipio:
+
+```{r echo=FALSE, fig.width=4, fig.height=4, fig.align='center'}
+#DT::datatable(medidas)
+medidas %>% 
+  knitr::kable(
+    format = "latex",
+    align = "l",
+    booktabs = TRUE,
+    longtable = TRUE,
+    linesep = "",
+    ) %>%
+  kableExtra::kable_styling(
+      position = "left",
+      latex_options = c("striped", "repeat_header"),
+      stripe_color = "gray!15"
+    )
+
+```
